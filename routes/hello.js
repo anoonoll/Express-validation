@@ -36,31 +36,46 @@ router.get('/',(req, res, next) => {
 router.get('/add', (req, res, next) => {
     var data = {
         title: 'Hello/Add',
-        content: '新しいコードを入力'
+        content: '新しいコードを入力',
+        form: {name:'', mail:'', age:0}
     }
     res.render('hello/add', data);
 });
 
 //新規作成フォーム送信の処理
 router.post('/add', (req, res, next) => {
-    var nm = req.body.name;
-    var ml = req.body.mail;
-    var ag = req.body.age;
-    var data = {'name':nm, 'mail':ml, 'age':ag};
+    req.check('name', 'NAME は必ず入力して下さい。').notEmpty();
+    req.check('mail', 'MAIL はメールアドレスを記入して下さい。').isEmail();
+    req.check('age', 'AGE は年齢(整数)を入力して下さい。').isInt();
 
-    //データベースの設定情報
-    var connection = mysql.createConnection(mysql_setting);
+    req.getValidationResult().then((result) =>{
+        if (!result.isEmpty()) {
+            var re = '<ul class="error">';
+            var result_arr = result.array();
+            for (var n in result_arr) {
+                re += '<li>' + result_arr[n].msg + '</li>'
+            } 
+            re += '</ul>';
+            var data = {
+                title: 'Hello/Add',
+                content: re,
+                form: req.body
+            }
+            res.render('hello/add', data);
+        } else {
+            var nm = req.body.name;
+            var ml = req.body.mail;
+            var ag = req.body.age;
+            var data = {'name':nm, 'mail':ml, 'age':ag};
 
-    //データベースに接続
-    connection.connect();
-
-    //データを取り出す
-    connection.query('insert into mydata set ?', data, function(error, results, fields) {
-        res.redirect('/hello');
+            var connection = mysql.createConnection(mysql_setting)
+            connection.connect();
+            connection.query('insert into mydata set ?', data, function(error, results, fields) {
+                res.redirect('/hello');
+            });
+            connection.end();
+        }
     });
-
-    //接続を解除
-    connection.end();
 });
 
 //指定IDのレコード表示する
